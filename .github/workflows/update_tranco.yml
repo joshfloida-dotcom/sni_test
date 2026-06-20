@@ -1,0 +1,43 @@
+name: Tranco List Updater
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Запуск каждый день в 02:00 UTC
+  workflow_dispatch:    # Позволяет запустить workflow вручную из вкладки Actions
+
+# Даем права на запись (коммит) обратно в репозиторий
+permissions:
+  contents: write
+
+jobs:
+  download-and-split:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run split script
+        run: python split_tranco.py
+
+      - name: Commit and Push changes
+        run: |
+          # Настраиваем локального git-пользователя от имени бота
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Индексируем папку со списками
+          git add tranco_lists/
+          
+          # Проверяем, есть ли изменения (чтобы не делать пустые коммиты)
+          if git diff --staged --quiet; then
+            echo "Нет новых изменений для коммита."
+          else
+            git commit -m "Авто-обновление списков Tranco: $(date -u +'%Y-%m-%d')"
+            git push
+          fi
